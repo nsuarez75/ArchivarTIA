@@ -1,17 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Input;
-using Siemens.Engineering;
 using System.IO;
-using Microsoft.Win32;
-using Siemens.Engineering.HW;
-using System.Windows;
-using System.Globalization;
-using System.Threading;
+using System.Linq;
 using System.Reflection;
+using Siemens.Engineering;
+using System.Threading;
 
 namespace ArchivarTIA
 {
@@ -26,6 +19,17 @@ namespace ArchivarTIA
         static void Main(string[] args)
         {
             Console.SetWindowSize(60, 10);
+            Console.Title = "ArchivarTIA";
+            //Subscribe to Assembly resolve event. Event fires when any assembly binding fails.
+            AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
+
+            //Path to registry is HKEY_LOCAL_MACHINE\SOFTWARE\Siemens\Automation\Openness\*version\PublicAPI\*assembly
+            List<string> versions = RegistryReader.GetVersions();
+
+            int nr = 1;
+            List<string> assemblies = RegistryReader.GetAssemblies(versions[nr - 1]);
+            RegistryReader.GetAssemblyPath(versions[nr - 1], assemblies.Last(), out plc, out hmi);
+
             List<string> proyectos = BuscarProyectos();
             ArchivarProyectos1(proyectos);
         }
@@ -126,16 +130,6 @@ namespace ArchivarTIA
 
         static void ArchivarProyectos1(List<string> proyectos)
         {
-
-            //Subscribe to Assembly resolve event. Event fires when any assembly binding fails.
-            AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
-
-            //Path to registry is HKEY_LOCAL_MACHINE\SOFTWARE\Siemens\Automation\Openness\*version\PublicAPI\*assembly
-            List<string> versions = RegistryReader.GetVersions();
-
-            int nr = 1;
-            List<string> assemblies = RegistryReader.GetAssemblies(versions[nr - 1]);
-            RegistryReader.GetAssemblyPath(versions[nr - 1], assemblies.Last(), out plc, out hmi);
             try
             {
                 Console.WriteLine("Abriendo TIA Portal");
