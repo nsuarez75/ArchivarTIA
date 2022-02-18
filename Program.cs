@@ -26,143 +26,86 @@ namespace ArchivarTIA
             //Path to registry is HKEY_LOCAL_MACHINE\SOFTWARE\Siemens\Automation\Openness\*version\PublicAPI\*assembly
             List<string> versions = RegistryReader.GetVersions();
 
+            //I always have only one version installed on my VMs so i can keep this fixed, you could read the versions list to retrieve other installed versions and choose which one you want
             int nr = 1;
             List<string> assemblies = RegistryReader.GetAssemblies(versions[nr - 1]);
             RegistryReader.GetAssemblyPath(versions[nr - 1], assemblies.Last(), out plc, out hmi);
 
-            List<string> proyectos = BuscarProyectos();
-            ArchivarProyectos1(proyectos);
+            List<string> projects = FindProjects();
+            if (projects != null) ArchiveProjectOnAssemblyResolve(projects);
+
         }
 
         /// <summary>
-        /// Devuelve una lista de paths a los proyectos encontrados
+        /// Returns Project list found in Desktop
         /// </summary>
         /// <returns></returns>
-        static List<string> BuscarProyectos()
+        static List<string> FindProjects()
         {
             string targetDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            List<string> directorios = new List<string>(Directory.EnumerateDirectories(targetDirectory));
-            List<string> proyectos = new List<string>();
+            List<string> directories = new List<string>(Directory.EnumerateDirectories(targetDirectory));
+            List<string> projects = new List<string>();
             Int16 count = 0;
-
-            Console.WriteLine("Buscando proyectos");
-            foreach (var dir in directorios)
+            List<string> versions = new List<string>() { ".ap13",".ap13_1",".ap14",".ap15",".ap15_1",".ap16",".ap17"};
+            Console.WriteLine($"Searching projects in {targetDirectory}");
+            foreach (var dir in directories)
             {
-                List<string> archivos = new List<string>(Directory.EnumerateFiles(dir));
-                foreach (var archivo in archivos)
+                List<string> files = new List<string>(Directory.EnumerateFiles(dir));
+                foreach (var file in files)
                 {
-                    if (Path.GetExtension(archivo) == ".ap16")
+                    if (versions.Contains(Path.GetExtension(file)))
                     {
-                        proyectos.Add(Path.GetFullPath(archivo));
+                        projects.Add(Path.GetFullPath(file));
                         count++;
                     }
-                    else if (Path.GetExtension(archivo) == ".ap15")
-                    {
-                        proyectos.Add(Path.GetFullPath(archivo));
-                        count++;
-                    }
-                    else if (Path.GetExtension(archivo) == ".ap15_1")
-                    {
-                        proyectos.Add(Path.GetFullPath(archivo));
-                        count++;
-                    }
+                   
                 }
             }
 
-            if (count > 1) Console.WriteLine($"Se han encontrado {count} proyectos");
-            else Console.WriteLine($"Se ha encontrado {count} proyecto");
+            if (count > 1) Console.WriteLine($"{count} projects found");
+            else if (count == 1) Console.WriteLine($"{count} project found");
+            else Console.WriteLine("Couldn't find any project");
 
-            return proyectos;
+            return projects;
         }
 
         /// <summary>
-        /// Archiva los proyectos que se encuentran en la lista de paths <paramref name="proyectos"/> recibida 
+        /// Archive the projects located in the project list <paramref name="projects"/> recibida 
         /// </summary>
-        /// <param name="proyectos"></param>
-        static void ArchivarProyectos(List<string> proyectos)
+        /// <param name="projects"></param>
+        static void ArchiveProjectOnAssemblyResolve(List<string> projects)
         {
             try
             {
-                Console.WriteLine("Abriendo TIA Portal");
+                Console.WriteLine("Loading hidden TIA instance");
                 tia = new TiaPortal(TiaPortalMode.WithoutUserInterface);
                 ProjectComposition tiaProjects = tia.Projects;
 
-                foreach (var proyecto in proyectos)
+                foreach (var project in projects)
                 {
                     Console.Clear();
-                    string nombreProyecto = Path.GetFileNameWithoutExtension(proyecto);
+                    string projectName = Path.GetFileNameWithoutExtension(project);
                     DateTime moment = DateTime.Now;
-                    string fecha = $"{moment.Year}{moment.Month}{moment.Day}_{moment.Hour}{moment.Minute}";
-                    nombreProyecto = nombreProyecto + "_" + fecha;
-                    if (Path.GetExtension(proyecto) == ".ap16") nombreProyecto = nombreProyecto + ".zap16";
-                    else if (Path.GetExtension(proyecto) == ".ap15") nombreProyecto = nombreProyecto + ".zap15";
-                    else if (Path.GetExtension(proyecto) == ".ap15_1") nombreProyecto = nombreProyecto + ".zap15_1";
-
+                    string date = $"{moment.Year}{moment.Month}{moment.Day}_{moment.Hour}{moment.Minute}";
+                    projectName = projectName + "_" + date;
+                    string projectExtension = Path.GetExtension(project);
+                    projectName = projectName + projectExtension.Insert(1,"z");
 
                     try
                     {
-                        FileInfo directorio = new FileInfo(proyecto);
-                        Console.WriteLine($"Archivando proyecto {Path.GetFileNameWithoutExtension(proyecto)}");
-                        Project project = tiaProjects.Open(directorio);
+                        FileInfo directorio = new FileInfo(project);
+                        Console.WriteLine($"Archiving project {Path.GetFileNameWithoutExtension(project)}");
+                        Project tiaProject = tiaProjects.Open(directorio);
                         DirectoryInfo target = new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
-                        project.Archive(target, $"{nombreProyecto}", ProjectArchivationMode.Compressed);
-                        project.Close();
-                        Console.WriteLine($"{nombreProyecto} archivado correctamente");
+                        tiaProject.Archive(target, $"{projectName}", ProjectArchivationMode.Compressed);
+                        tiaProject.Close();
+                        Console.WriteLine($"{projectName} archived!");
                         Thread.Sleep(1000);
                     }
 
                     catch (Exception e)
                     {
-                        Console.WriteLine($"Imposible archivar proyecto {nombreProyecto}");
-                        Console.WriteLine(e);
-                        Console.ReadKey();
-                    }
-                }
-
-            }
-
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                Console.ReadKey();
-            }
-        }
-
-        static void ArchivarProyectos1(List<string> proyectos)
-        {
-            try
-            {
-                Console.WriteLine("Abriendo TIA Portal");
-                tia = new TiaPortal(TiaPortalMode.WithoutUserInterface);
-                ProjectComposition tiaProjects = tia.Projects;
-
-                foreach (var proyecto in proyectos)
-                {
-                    Console.Clear();
-                    string nombreProyecto = Path.GetFileNameWithoutExtension(proyecto);
-                    DateTime moment = DateTime.Now;
-                    string fecha = $"{moment.Year}{moment.Month}{moment.Day}_{moment.Hour}{moment.Minute}";
-                    nombreProyecto = nombreProyecto + "_" + fecha;
-                    if (Path.GetExtension(proyecto) == ".ap16") nombreProyecto = nombreProyecto + ".zap16";
-                    else if (Path.GetExtension(proyecto) == ".ap15") nombreProyecto = nombreProyecto + ".zap15";
-                    else if (Path.GetExtension(proyecto) == ".ap15_1") nombreProyecto = nombreProyecto + ".zap15_1";
-
-
-                    try
-                    {
-                        FileInfo directorio = new FileInfo(proyecto);
-                        Console.WriteLine($"Archivando proyecto {Path.GetFileNameWithoutExtension(proyecto)}");
-                        Project project = tiaProjects.Open(directorio);
-                        DirectoryInfo target = new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
-                        project.Archive(target, $"{nombreProyecto}", ProjectArchivationMode.Compressed);
-                        project.Close();
-                        Console.WriteLine($"{nombreProyecto} archivado correctamente");
-                        Thread.Sleep(1000);
-                    }
-
-                    catch (Exception e)
-                    {
-                        Console.WriteLine($"Imposible archivar proyecto {nombreProyecto}");
+                        Console.WriteLine($"Error archiving project {projectName}");
                         Console.WriteLine(e);
                         Console.ReadKey();
                     }
