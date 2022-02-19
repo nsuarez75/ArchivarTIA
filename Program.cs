@@ -34,15 +34,21 @@ namespace ArchivarTIA
             RegistryReader.GetAssemblyPath(versions[nr - 1], assemblies.Last(), out plc, out hmi);
 
             List<string> projects = FindProjects();
-            OpenTIA();
-            if (projects != null) ArchiveProjects(projects);
-            CloseTIA();
+
+            if (projects != null)
+            {
+                OpenTIA();
+                ArchiveProjects(projects);
+                CloseTIA();
+            }
+            Thread.Sleep(2000);
+                
 
 
         }
 
         /// <summary>
-        /// Returns Project list found in Desktop
+        /// Returns Project list found 
         /// </summary>
         /// <returns></returns>
         static List<string> FindProjects()
@@ -58,18 +64,29 @@ namespace ArchivarTIA
             Int16 count = 0;
             
             
-            foreach (var targetDir in targetDirectories)
+            foreach (var tDir in targetDirectories)
             {
-                Console.WriteLine($"Searching projects in {targetDir}");
-                List<string> files = new List<string>(Directory.EnumerateFiles(targetDir));
-                foreach (var file in files)
+                Console.WriteLine($"Searching projects in {tDir}");
+                foreach(var dir in Directory.EnumerateDirectories(tDir))
                 {
-                    if (versions.Contains(Path.GetExtension(file)))
+                    try
                     {
-                        projects.Add(Path.GetFullPath(file));
-                        count++;
+                        List<string> files = new List<string>(Directory.EnumerateFiles(dir));
+                        foreach (var file in files)
+                        {
+                            if (versions.Contains(Path.GetExtension(file)))
+                            {
+                                projects.Add(Path.GetFullPath(file));
+                                count++;
+                            }
+
+                        }
                     }
-                   
+                    catch (Exception e)
+                    {
+
+                    }
+                                           
                 }
             }
 
@@ -77,7 +94,9 @@ namespace ArchivarTIA
             else if (count == 1) Console.WriteLine($"{count} project found");
             else Console.WriteLine("Couldn't find any project");
 
-            return projects;
+            if (projects.Any()) return projects;
+            else return null;
+
         }
 
         /// <summary>
@@ -86,10 +105,12 @@ namespace ArchivarTIA
         /// <returns></returns>
         static List<string> RetrieveCustomPath()
         {
-            List<string> customPaths = new List<string>(); 
+            List<string> customPaths = new List<string>();
+            
             try
             {
-                foreach(var path in File.ReadAllLines(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)))
+                string[] customFile = File.ReadAllLines($"{Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)}\\paths.txt");
+                foreach (var path in customFile)
                 {
                     customPaths.Add(path);
                 }
