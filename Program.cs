@@ -32,7 +32,10 @@ namespace ArchivarTIA
             RegistryReader.GetAssemblyPath(versions[nr - 1], assemblies.Last(), out plc, out hmi);
 
             List<string> projects = FindProjects();
-            if (projects != null) ArchiveProjectOnAssemblyResolve(projects);
+            OpenTIA();
+            if (projects != null) ArchiveProjects(projects);
+            CloseTIA();
+
 
         }
 
@@ -46,7 +49,7 @@ namespace ArchivarTIA
             List<string> directories = new List<string>(Directory.EnumerateDirectories(targetDirectory));
             List<string> projects = new List<string>();
             Int16 count = 0;
-            List<string> versions = new List<string>() { ".ap13",".ap13_1",".ap14",".ap15",".ap15_1",".ap16",".ap17"};
+            List<string> versions = new List<string>() { ".ap13",".ap14",".ap15",".ap15_1",".ap16",".ap17"};
             Console.WriteLine($"Searching projects in {targetDirectory}");
             foreach (var dir in directories)
             {
@@ -69,16 +72,25 @@ namespace ArchivarTIA
             return projects;
         }
 
+        static void OpenTIA()
+        {
+            Console.WriteLine("Loading hidden TIA instance");
+            tia = new TiaPortal(TiaPortalMode.WithoutUserInterface);
+        }
+
+        static void CloseTIA()
+        {
+            tia.Dispose();
+        }
+
         /// <summary>
         /// Archive the projects located in the project list <paramref name="projects"/> recibida 
         /// </summary>
         /// <param name="projects"></param>
-        static void ArchiveProjectOnAssemblyResolve(List<string> projects)
+        static void ArchiveProjects(List<string> projects)
         {
             try
             {
-                Console.WriteLine("Loading hidden TIA instance");
-                tia = new TiaPortal(TiaPortalMode.WithoutUserInterface);
                 ProjectComposition tiaProjects = tia.Projects;
 
                 foreach (var project in projects)
@@ -91,35 +103,42 @@ namespace ArchivarTIA
                     string projectExtension = Path.GetExtension(project);
                     projectName = projectName + projectExtension.Insert(1,"z");
 
+                    Project tiaProject = null;
+                    FileInfo directorio = new FileInfo(project);
+                    DirectoryInfo target = new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
                     try
                     {
-                        FileInfo directorio = new FileInfo(project);
+                        
                         Console.WriteLine($"Archiving project {Path.GetFileNameWithoutExtension(project)}");
-                        Project tiaProject = tiaProjects.Open(directorio);
-                        DirectoryInfo target = new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
-                        tiaProject.Archive(target, $"{projectName}", ProjectArchivationMode.Compressed);
-                        tiaProject.Close();
-                        Console.WriteLine($"{projectName} archived!");
-                        Thread.Sleep(1000);
+                        tiaProject = tiaProjects.Open(directorio);                       
+                        tiaProject.Archive(target, $"{projectName}", ProjectArchivationMode.Compressed);                      
+                        Console.WriteLine($"{projectName} archived!");                  
                     }
 
                     catch (Exception e)
                     {
-                        Console.WriteLine($"Error archiving project {projectName}");
+                        Console.WriteLine($"Error archiving project {project}");
                         Console.WriteLine(e);
                         Console.ReadKey();
+                    }
+                    finally
+                    {
+                        tiaProject.Close();
+                        Console.WriteLine($"Closing project {project}");
+                        Thread.Sleep(1000);
                     }
                 }
 
             }
 
-            catch (Exception e)
+            catch (Exception e) 
             {
                 Console.WriteLine(e);
                 Console.ReadKey();
             }
 
         }
+
 
         public static Assembly OnAssemblyResolve(object sender, ResolveEventArgs args)
         {
