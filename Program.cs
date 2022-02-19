@@ -5,6 +5,8 @@ using System.Linq;
 using System.Reflection;
 using Siemens.Engineering;
 using System.Threading;
+using System.Configuration;
+using System.Collections.Specialized;
 
 namespace ArchivarTIA
 {
@@ -45,15 +47,21 @@ namespace ArchivarTIA
         /// <returns></returns>
         static List<string> FindProjects()
         {
-            string targetDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            List<string> directories = new List<string>(Directory.EnumerateDirectories(targetDirectory));
+            List<string> versions = new List<string>() { ".ap13", ".ap14", ".ap15", ".ap15_1", ".ap16", ".ap17" };
+            List<string> targetDirectories = new List<string>();
+
+            //If not custompath set, take Desktop
+            if (RetrieveCustomPath() == null) targetDirectories.Add(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
+            else targetDirectories = RetrieveCustomPath();
+
             List<string> projects = new List<string>();
             Int16 count = 0;
-            List<string> versions = new List<string>() { ".ap13",".ap14",".ap15",".ap15_1",".ap16",".ap17"};
-            Console.WriteLine($"Searching projects in {targetDirectory}");
-            foreach (var dir in directories)
+            
+            
+            foreach (var targetDir in targetDirectories)
             {
-                List<string> files = new List<string>(Directory.EnumerateFiles(dir));
+                Console.WriteLine($"Searching projects in {targetDir}");
+                List<string> files = new List<string>(Directory.EnumerateFiles(targetDir));
                 foreach (var file in files)
                 {
                     if (versions.Contains(Path.GetExtension(file)))
@@ -70,6 +78,30 @@ namespace ArchivarTIA
             else Console.WriteLine("Couldn't find any project");
 
             return projects;
+        }
+
+        /// <summary>
+        /// If custom folder exists under MyDocuments folder, return the list of Folders where the projects we want to read archive
+        /// </summary>
+        /// <returns></returns>
+        static List<string> RetrieveCustomPath()
+        {
+            List<string> customPaths = new List<string>(); 
+            try
+            {
+                foreach(var path in File.ReadAllLines(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)))
+                {
+                    customPaths.Add(path);
+                }
+
+                return customPaths;
+                
+            }
+
+            catch
+            {
+                return null;
+            }
         }
 
         static void OpenTIA()
