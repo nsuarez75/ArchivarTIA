@@ -6,9 +6,9 @@ using System.Runtime.InteropServices;
 // conjunto de atributos. Cambie estos valores de atributo para modificar la información
 // asociada a un ensamblado.
 [assembly: AssemblyTitle("ArchivarTIA")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Archivador automático de proyectos TIA Portal")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("Isotron S.A.U.")]
 [assembly: AssemblyProduct("ArchivarTIA")]
 [assembly: AssemblyCopyright("Copyright ©  2022")]
 [assembly: AssemblyTrademark("")]
