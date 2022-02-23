@@ -12,7 +12,7 @@ namespace ArchivarTIA
 {
     class Program
     {
-        private static TiaPortal tia;
+        //private static TiaPortal tia;
         private static string plc;
         private static string hmi;
 
@@ -29,22 +29,17 @@ namespace ArchivarTIA
             List<string> versions = RegistryReader.GetVersions();
 
             //I always have only one version installed on my VMs so i can keep this fixed, you could read the versions list to retrieve other installed versions and choose which one you want
-            int nr = 1;
-            List<string> assemblies = RegistryReader.GetAssemblies(versions[nr - 1]);
-            RegistryReader.GetAssemblyPath(versions[nr - 1], assemblies.Last(), out plc, out hmi);
+            List<string> assemblies = RegistryReader.GetAssemblies(versions[0]);
+            RegistryReader.GetAssemblyPath(versions[0], assemblies.Last(), out plc, out hmi);
 
             List<string> projects = FindProjects();
 
             if (projects != null)
             {
-                OpenTIA();
                 ArchiveProjects(projects);
-                CloseTIA();
             }
             Thread.Sleep(2000);
                 
-
-
         }
 
         /// <summary>
@@ -125,70 +120,63 @@ namespace ArchivarTIA
             }
         }
 
-        static void OpenTIA()
-        {
-            Console.WriteLine("Loading hidden TIA instance");
-            tia = new TiaPortal(TiaPortalMode.WithoutUserInterface);
-        }
-
-        static void CloseTIA()
-        {
-            tia.Dispose();
-        }
-
         /// <summary>
         /// Archive the projects located in the project list <paramref name="projects"/> recibida 
         /// </summary>
         /// <param name="projects"></param>
         static void ArchiveProjects(List<string> projects)
         {
-            try
+            using (TiaPortal tia = new TiaPortal(TiaPortalMode.WithoutUserInterface))
             {
-                ProjectComposition tiaProjects = tia.Projects;
-
-                foreach (var project in projects)
+                try
                 {
-                    Console.Clear();
-                    string projectName = Path.GetFileNameWithoutExtension(project);
-                    DateTime moment = DateTime.Now;
-                    string date = $"{moment.Year}{moment.Month}{moment.Day}_{moment.Hour}{moment.Minute}";
-                    projectName = projectName + "_" + date;
-                    string projectExtension = Path.GetExtension(project);
-                    projectName = projectName + projectExtension.Insert(1,"z");
+                    ProjectComposition tiaProjects = tia.Projects;
 
-                    Project tiaProject = null;
-                    FileInfo directorio = new FileInfo(project);
-                    DirectoryInfo target = new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
-                    try
+                    foreach (var project in projects)
                     {
-                        
-                        Console.WriteLine($"Archiving project {Path.GetFileNameWithoutExtension(project)}");
-                        tiaProject = tiaProjects.Open(directorio);                       
-                        tiaProject.Archive(target, $"{projectName}", ProjectArchivationMode.Compressed);                      
-                        Console.WriteLine($"{projectName} archived!");                  
+                        Console.Clear();
+                        string projectName = Path.GetFileNameWithoutExtension(project);
+                        DateTime moment = DateTime.Now;
+                        string date = $"{moment.Year}{moment.Month}{moment.Day}_{moment.Hour}{moment.Minute}";
+                        projectName = projectName + "_" + date;
+                        string projectExtension = Path.GetExtension(project);
+                        projectName = projectName + projectExtension.Insert(1, "z");
+
+                        Project tiaProject = null;
+                        FileInfo directorio = new FileInfo(project);
+                        DirectoryInfo target = new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
+                        try
+                        {
+
+                            Console.WriteLine($"Archiving project {Path.GetFileNameWithoutExtension(project)}");
+                            tiaProject = tiaProjects.Open(directorio);
+                            tiaProject.Archive(target, $"{projectName}", ProjectArchivationMode.Compressed);
+                            Console.WriteLine($"{projectName} archived!");
+                        }
+
+                        catch (Exception e)
+                        {
+                            Console.WriteLine($"Error archiving project {project}");
+                            Console.WriteLine(e);
+                            Console.ReadKey();
+                        }
+                        finally
+                        {
+                            tiaProject.Close();
+                            Console.WriteLine($"Closing project {project}");
+                            Thread.Sleep(1000);
+                        }
                     }
 
-                    catch (Exception e)
-                    {
-                        Console.WriteLine($"Error archiving project {project}");
-                        Console.WriteLine(e);
-                        Console.ReadKey();
-                    }
-                    finally
-                    {
-                        tiaProject.Close();
-                        Console.WriteLine($"Closing project {project}");
-                        Thread.Sleep(1000);
-                    }
                 }
 
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    Console.ReadKey();
+                }
             }
-
-            catch (Exception e) 
-            {
-                Console.WriteLine(e);
-                Console.ReadKey();
-            }
+                
 
         }
 
